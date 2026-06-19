@@ -1,3 +1,17 @@
 spring:
   application:
     name: backend
+
+server:
+  port: 8080
+
+mqtt:
+  broker-url: tcp://broker.hivemq.com:1883
+  client-id: ambient-monitor-backend
+  topic: ambient/sensor/data
+
+influxdb:
+  url: http://localhost:8086
+  token: my-super-secret-token
+  org: ambient-monitor
+  bucket: sensor-data
