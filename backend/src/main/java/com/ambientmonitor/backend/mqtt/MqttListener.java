@@ -1,5 +1,7 @@
 package com.ambientmonitor.backend.mqtt;
 
+import com.ambientmonitor.backend.model.SensorReading;
+import com.ambientmonitor.backend.repository.InfluxDbRepository;
 import jakarta.annotation.PostConstruct;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
@@ -15,9 +17,13 @@ public class MqttListener {
     private static final Logger log = LoggerFactory.getLogger(MqttListener.class);
 
     private final MqttConfig mqttConfig;
+    private final SensorMessageParser parser;
+    private final InfluxDbRepository repository;
 
-    public MqttListener(MqttConfig mqttConfig) {
+    public MqttListener(MqttConfig mqttConfig, SensorMessageParser parser, InfluxDbRepository repository) {
         this.mqttConfig = mqttConfig;
+        this.parser = parser;
+        this.repository = repository;
     }
 
     @PostConstruct
@@ -38,7 +44,12 @@ public class MqttListener {
 
             client.subscribe(mqttConfig.getTopic(), (topic, message) -> {
                 String payload = new String(message.getPayload());
-                log.info("Mensagem recebida no tópico [{}]: {}", topic, payload);
+                try {
+                    SensorReading reading = parser.parse(payload);
+                    repository.save(reading);
+                } catch (Exception e) {
+                    log.error("Erro ao processar mensagem: {}", payload, e);
+                }
             });
 
             log.info("Inscrito no tópico: {}", mqttConfig.getTopic());
