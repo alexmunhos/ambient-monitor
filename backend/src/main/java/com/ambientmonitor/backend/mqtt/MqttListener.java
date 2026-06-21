@@ -1,8 +1,10 @@
 package com.ambientmonitor.backend.mqtt;
 
 import com.ambientmonitor.backend.model.SensorReading;
-import com.ambientmonitor.backend.repository.InfluxDbRepository;
+import com.ambientmonitor.backend.service.SensorReadingService;
+import com.ambientmonitor.backend.websocket.SensorWebSocketHandler;
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -12,19 +14,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class MqttListener {
 
     private static final Logger log = LoggerFactory.getLogger(MqttListener.class);
 
     private final MqttConfig mqttConfig;
     private final SensorMessageParser parser;
-    private final InfluxDbRepository repository;
-
-    public MqttListener(MqttConfig mqttConfig, SensorMessageParser parser, InfluxDbRepository repository) {
-        this.mqttConfig = mqttConfig;
-        this.parser = parser;
-        this.repository = repository;
-    }
+    private final SensorReadingService service;
+    private final SensorWebSocketHandler webSocketHandler;
 
     @PostConstruct
     public void connectAndSubscribe() {
@@ -46,7 +44,8 @@ public class MqttListener {
                 String payload = new String(message.getPayload());
                 try {
                     SensorReading reading = parser.parse(payload);
-                    repository.save(reading);
+                    service.save(reading);
+                    webSocketHandler.broadcast(reading);
                 } catch (Exception e) {
                     log.error("Erro ao processar mensagem: {}", payload, e);
                 }
